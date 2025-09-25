@@ -1,18 +1,14 @@
-/**
- * Hook to set up the "Luck Points" resource for all characters when the world is ready.
- */
-Hooks.on("ready", () => {
-  // Loop through all actors in the world
-  for (let actor of game.actors.contents) {
-    // Only apply this to player characters
+// luck-system.js
+// Ensure Luck Points resource exists and attach a click -> dialog handler on the "Luck Points" Favorite
+
+Hooks.on("ready", async () => {
+  // Ensure every character actor has the primary resource labelled "Luck Points"
+  for (const actor of game.actors.contents) {
     if (actor.type !== "character") continue;
 
     const res = actor.system.resources.primary;
-
-    // If the primary resource isn't set, initialize it as Luck Points
     if (!res?.label || res.label === "") {
-      console.log(`Luck System | Initializing Luck Points for ${actor.name}`);
-      actor.update({
+      await actor.update({
         "system.resources.primary.label": "Luck Points",
         "system.resources.primary.value": 0,
         "system.resources.primary.max": 5
@@ -21,59 +17,40 @@ Hooks.on("ready", () => {
   }
 });
 
-/**
- * Hook to modify the character sheet after it has been rendered.
- * This is where we replace the Inspiration UI with our button.
- */
-Hooks.on("renderActorSheet5eCharacter", (sheet, html, data) => {
-  // Find the HTML element for the inspiration tracker
-  const inspirationElement = html.find(".inspiration");
-  const actor = sheet.actor;
+// Open the Spend Luck dialog. sheetApp is optional but used to re-render the sheet after spending.
+async function openLuckDialog(actor, sheetApp = null) {
+  const luck = actor.system.resources.primary?.value ?? 0;
 
-  // Define the HTML for our new button
-  const buttonHtml = `
-    <button type="button" class="use-luck-points" title="Use Luck Points">
-      <i class="fas fa-dice-d20"></i> Use Luck
-    </button>
-  `;
-
-  // Replace the inspiration checkbox with our new button
-  inspirationElement.html(buttonHtml);
-
-  // Add a click event listener to our new button
-  html.find(".use-luck-points").on("click", (event) => {
-    // When clicked, open the spending dialog
-    openLuckDialog(actor);
-  });
-});
-
-/**
- * Opens a dialog window for the player to choose how to spend their luck points.
- * @param {Actor} actor The character actor spending the points.
- */
-function openLuckDialog(actor) {
-  const currentLuck = actor.system.resources.primary.value;
-
-  // Create and render the Dialog
   new Dialog({
-    title: "Spend Luck Points",
-    content: `<p>You have <b>${currentLuck}</b> Luck Point(s). How would you like to use them?</p>`,
+    title: `Spend Luck Points — ${actor.name}`,
+    content: `
+      <p>${actor.name} has <strong>${luck}</strong> Luck Point${luck === 1 ? "" : "s"}.</p>
+      <p>Choose how to spend them:</p>
+    `,
     buttons: {
-      // Button for spending 1 point
-      spendOne: {
-        icon: '<i class="fas fa-plus-circle"></i>',
-        label: "Spend 1 Point (+1 Bonus)",
-        callback: () => handleLuckSpend(actor, 1, "a +1 bonus to their roll")
+      spend1: {
+        label: "Spend 1 ( +1 to a d20 roll )",
+        callback: async () => {
+          if (luck < 1) return ui.notifications.warn("Not enough Luck Points!");
+          const newVal = Math.max(0, luck - 1);
+          await actor.update({ "system.resources.primary.value": newVal });
+          ui.notifications.info(`${actor.name} spends 1 Luck Point.`);
+          // Re-render sheet to update UI (favorites count, etc.)
+          if (sheetApp) sheetApp.render();
+        }
       },
-      // Button for spending 3 points
-      spendThree: {
-        icon: '<i class="fas fa-redo"></i>',
-        label: "Spend 3 Points (Reroll)",
-        callback: () => handleLuckSpend(actor, 3, "a reroll")
+      spend3: {
+        label: "Spend 3 ( Reroll a d20 )",
+        callback: async () => {
+          if (luck < 3) return ui.notifications.warn("Not enough Luck Points!");
+          const newVal = Math.max(0, luck - 3);
+          await actor.update({ "system.resources.primary.value": newVal });
+          ui.notifications.info(`${actor.name} spends 3 Luck Points to reroll.`);
+          // You can add automatic reroll logic here later.
+          if (sheetApp) sheetApp.render();
+        }
       },
-      // Cancel button
       cancel: {
-        icon: '<i class="fas fa-times"></i>',
         label: "Cancel"
       }
     },
@@ -81,29 +58,66 @@ function openLuckDialog(actor) {
   }).render(true);
 }
 
-/**
- * Handles the logic for subtracting luck points and notifying the chat.
- * @param {Actor} actor The actor spending the points.
- * @param {number} cost The number of points to spend.
- * @param {string} reason A description of what the points were spent on for the chat message.
- */
-async function handleLuckSpend(actor, cost, reason) {
-  const currentLuck = actor.system.resources.primary.value;
+// Attach a click handler to the "Luck Points" Favorites entry on the character sheet.
+// This tries to be robust: it first looks in the Favorites area, then falls back to any element containing the label text.
+Hooks.on("renderActorSheet5eCharacter", (app, html) => {
+  // Clean up any previous markers so we don't double-bind
+  html.find(".luck-fav-bind").removeClass("luck-fav-bind").off("click");
 
-  // Check if the actor has enough points
-  if (currentLuck < cost) {
-    ui.notifications.warn("You don't have enough luck points for that!");
-    return;
+  const actor = app.actor;
+
+  // Helper: try to find the favorites region first (UI can differ by sheet)
+  let targets = html.find(".sidebar .favorites, .favorites, .favorite-list, .player-side .favorites");
+
+  // If found, search inside it for nodes containing "Luck Points"
+  let luckNodes = $();
+  if (targets.length) {
+    targets.each((i, t) => {
+      // find any child element that contains the label text
+      const found = $(t).find(":contains('Luck Points')").filter(function() {
+        // only keep elements with direct text content (avoid picking huge wrappers)
+        const txt = $(this).text().trim();
+        return txt && txt.match(/Luck Points/);
+      });
+      luckNodes = luckNodes.add(found);
+    });
   }
 
-  // Calculate the new total and update the actor
-  const newLuckValue = currentLuck - cost;
-  await actor.update({ "system.resources.primary.value": newLuckValue });
-  ui.notifications.info(`You spent ${cost} luck point(s).`);
+  // Fallback: search entire sheet for the label if we didn't find anything in Favorites
+  if (luckNodes.length === 0) {
+    const fallback = html.find(":contains('Luck Points')").filter(function() {
+      const txt = $(this).text().trim();
+      return txt && txt.match(/Luck Points/);
+    });
+    luckNodes = luckNodes.add(fallback);
+  }
 
-  // Create a message in the chat log to show what happened
-  await ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ actor: actor }),
-    content: `${actor.name} spends ${cost} luck point(s) to gain ${reason}!`
+  // For each matched node, climb to a clickable parent (anchor/button/.item/etc) and bind the click.
+  luckNodes.each((i, node) => {
+    const $node = $(node);
+
+    // Prefer a clickable ancestor: a, button, .directory-item, .item, .favorite, .resource, or the immediate parent
+    let $clickTarget = $node.closest("a, button, .directory-item, .item, .favorite, .resource, .entity, .resource-primary");
+
+    if ($clickTarget.length === 0) {
+      $clickTarget = $node.parent();
+    }
+
+    // If still nothing, just attach directly to the node
+    if ($clickTarget.length === 0) $clickTarget = $node;
+
+    // Avoid double-binding
+    if ($clickTarget.data("luck-bound")) return;
+    $clickTarget.data("luck-bound", true);
+
+    // Add a small class for debugging/visual cue if desired
+    $clickTarget.addClass("luck-fav-bind");
+
+    // Bind click
+    $clickTarget.on("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      openLuckDialog(actor, app);
+    });
   });
-}
+});
