@@ -91,37 +91,42 @@ async function openLuckDialog(actor, sheetApp = null) {
 }
 
 /**
- * Replaces the Inspiration button on the D&D 5e character sheet with the Luck Points display.
+ * Replaces the Inspiration button on the new D&D 5e character sheet.
  */
 Hooks.on("renderActorSheet5eCharacter", (app, html) => {
-    // The 'html' variable is a jQuery object, so we must use jQuery methods to interact with it.
+    // --- DEBUGGING STEP 1 ---
+    // This message should ALWAYS appear in your F12 console when you open a character sheet.
+    console.log(`Luck System | render hook fired for sheet: ${app.title}`);
+
     const actor = app.actor;
 
-    // 1. Find the inspiration button using jQuery's .find() method.
-    const inspirationButton = html.find('a[data-action="inspiration"]');
+    // This is a precise selector for the inspiration element in the NEW character sheet header.
+    const inspirationContainer = html.find('header.sheet-header .inspiration');
 
-    // 2. If the button doesn't exist on this sheet, or has already been replaced, do nothing.
-    if (inspirationButton.length === 0) {
-        return;
+    // --- DEBUGGING STEP 2 ---
+    // We check if our selector found anything.
+    if (inspirationContainer.length === 0) {
+        // If it finds nothing, this warning will appear in the console.
+        console.warn("Luck System | FAILED to find inspiration element with selector 'header.sheet-header .inspiration'");
+        return; // Exit because there's nothing to replace.
     }
+    
+    // If it DOES find something, this success message will appear.
+    console.log("Luck System | SUCCESS: Found inspiration element to replace.", inspirationContainer[0]);
 
-    // 3. Get the actor's luck point data.
     const { value: luck, max } = getLuckPoints(actor);
 
-    // 4. Create the new HTML for our luck display as a jQuery object.
     const luckDisplay = $(`
-        <a class="luck-points-button" title="Luck Points: ${luck} / ${max}">
+        <a class="luck-points-button inspiration" title="Luck Points: ${luck} / ${max}">
             <span class="luck-value">${luck} / ${max}</span>
             <span class="luck-label">Luck</span>
         </a>
     `);
 
-    // 5. Add a click event listener to our new element.
     luckDisplay.on("click", (event) => {
         event.preventDefault();
         openLuckDialog(actor, app);
     });
 
-    // 6. Replace the original inspiration button with our new luck display.
-    inspirationButton.replaceWith(luckDisplay);
+    inspirationContainer.replaceWith(luckDisplay);
 });
