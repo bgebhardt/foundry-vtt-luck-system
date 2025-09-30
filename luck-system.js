@@ -2,6 +2,12 @@
 
 const MODULE_ID = "luck-system"; 
 
+// --- TEMPORARY DIAGNOSTIC ---
+// This hook will log the class name of every application that opens.
+Hooks.on("renderApplication", (app) => {
+  console.log(`Application Rendered: ${app.constructor.name}`, app);
+});
+
 /********************************************************************************
  * Data Management and Initialization
  ********************************************************************************/
