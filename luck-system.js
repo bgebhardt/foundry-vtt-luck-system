@@ -1,18 +1,12 @@
 // luck-system.js
 
-// CORRECT: This ID must match the "id" field in your module.json
 const MODULE_ID = "luck-system"; 
 
 /********************************************************************************
  * Data Management and Initialization
  ********************************************************************************/
 
-/**
- * Initializes the luck point data as a flag on all 'character' type Actors.
- * This ensures that actors created before the module was active have the data.
- */
 Hooks.on("ready", async () => {
-    // Only run this setup once for the GM user.
     if (!game.user.isGM) return;
 
     console.log(`${MODULE_ID} | Ensuring Luck Points flag exists on all character Actors.`);
@@ -21,10 +15,7 @@ Hooks.on("ready", async () => {
     const actorsToUpdate = game.actors.filter(actor => actor.type === "character");
 
     for (const actor of actorsToUpdate) {
-        // Get the current luck points flag
         const currentLuck = actor.getFlag(MODULE_ID, "luckPoints");
-
-        // If the flag is undefined, it means this actor has never had luck points set.
         if (currentLuck === undefined) {
             updates.push({
                 _id: actor.id,
@@ -43,7 +34,6 @@ Hooks.on("ready", async () => {
 
 /**
  * Helper function to retrieve an Actor's luck points.
- * Provides default values if the flags are not yet set on the document.
  * @param {Actor} actor The Actor document.
  * @returns {{value: number, max: number}}
  */
@@ -52,8 +42,8 @@ function getLuckPoints(actor) {
     const maxData = actor.getFlag(MODULE_ID, "maxLuck");
     
     return {
-        value: luckData ?? 0, // Use 0 if the flag isn't set
-        max: maxData ?? 5    // Use 5 if the flag isn't set
+        value: luckData ?? 0,
+        max: maxData ?? 5
     };
 }
 
@@ -62,11 +52,6 @@ function getLuckPoints(actor) {
  * UI Logic: Dialogs and Sheet Replacement
  ********************************************************************************/
 
-/**
- * Opens a dialog window to spend Luck Points.
- * @param {Actor} actor The actor spending luck.
- * @param {Application} [sheetApp=null] The sheet application to re-render after an update.
- */
 async function openLuckDialog(actor, sheetApp = null) {
     const { value: luck, max } = getLuckPoints(actor);
 
@@ -79,7 +64,7 @@ async function openLuckDialog(actor, sheetApp = null) {
         buttons: {
             spend1: {
                 label: "Spend 1 (+1 to a d20 roll)",
-                condition: luck >= 1, // The button is only enabled if the condition is met
+                condition: luck >= 1,
                 callback: async () => {
                     const newVal = Math.max(0, luck - 1);
                     await actor.setFlag(MODULE_ID, "luckPoints", newVal);
@@ -108,33 +93,35 @@ async function openLuckDialog(actor, sheetApp = null) {
 /**
  * Replaces the Inspiration button on the D&D 5e character sheet with the Luck Points display.
  */
-Hooks.on("renderActorSheet5eCharacter", (app, [html]) => {
+Hooks.on("renderActorSheet5eCharacter", (app, html) => {
+    // The 'html' variable is a jQuery object, so we must use jQuery methods to interact with it.
     const actor = app.actor;
 
-    // Find the Inspiration element
-    const inspirationElement = html.querySelector('a[data-action="inspiration"]');
-    if (!inspirationElement) return;
+    // 1. Find the inspiration button using jQuery's .find() method.
+    const inspirationButton = html.find('a[data-action="inspiration"]');
 
-    // Avoid re-rendering if we've already replaced it.
-    if (inspirationElement.classList.contains("luck-system-replaced")) return;
+    // 2. If the button doesn't exist on this sheet, or has already been replaced, do nothing.
+    if (inspirationButton.length === 0) {
+        return;
+    }
 
+    // 3. Get the actor's luck point data.
     const { value: luck, max } = getLuckPoints(actor);
 
-    // Prepare the new element's content and attributes
-    const luckDisplay = document.createElement("a");
-    luckDisplay.className = "luck-points-button luck-system-replaced";
-    luckDisplay.title = `Luck Points: ${luck} / ${max}`;
-    luckDisplay.innerHTML = `
-        <span class="luck-value">${luck} / ${max}</span>
-        <span class="luck-label">Luck</span>
-    `;
+    // 4. Create the new HTML for our luck display as a jQuery object.
+    const luckDisplay = $(`
+        <a class="luck-points-button" title="Luck Points: ${luck} / ${max}">
+            <span class="luck-value">${luck} / ${max}</span>
+            <span class="luck-label">Luck</span>
+        </a>
+    `);
 
-    // Add a click listener to our new element
-    luckDisplay.addEventListener("click", (event) => {
+    // 5. Add a click event listener to our new element.
+    luckDisplay.on("click", (event) => {
         event.preventDefault();
         openLuckDialog(actor, app);
     });
 
-    // Replace the old inspiration element with our new luck display
-    inspirationElement.replaceWith(luckDisplay);
+    // 6. Replace the original inspiration button with our new luck display.
+    inspirationButton.replaceWith(luckDisplay);
 });
