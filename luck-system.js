@@ -1,123 +1,162 @@
 // luck-system.js
-// Ensure Luck Points resource exists and attach a click -> dialog handler on the "Luck Points" Favorite
 
+const MODULE_ID = "foundry-vtt-luck-system"; // Define your module ID for flags and settings
+
+/********************************************************************************
+ * Data Management: Initialization and Getters
+ ********************************************************************************/
+
+/**
+ * Initializes the luck point data as an Actor flag on all 'character' type Actors.
+ * Using a flag prevents it from appearing as a standard resource on the D&D 5e sheet.
+ */
 Hooks.on("ready", async () => {
-  // Ensure every character actor has the primary resource labelled "Luck Points"
-  for (const actor of game.actors.contents) {
-    if (actor.type !== "character") continue;
+    // Only run setup for the GM.
+    if (!game.user.isGM) return;
 
-    const res = actor.system.resources.primary;
-    if (!res?.label || res.label === "") {
-      await actor.update({
-        "system.resources.primary.label": "Luck Points",
-        "system.resources.primary.value": 0,
-        "system.resources.primary.max": 5
-      });
+    console.log(`${MODULE_ID} | Initializing Luck Points on Actors.`);
+
+    const updates = [];
+
+    // Loop through all Actors in the game world
+    for (const actor of game.actors.contents) {
+        // Only apply to player characters
+        if (actor.type !== "character") continue;
+
+        // Check if the flag does not exist (first time running)
+        const currentLuck = actor.getFlag(MODULE_ID, "luckPoints");
+
+        if (currentLuck === undefined) {
+            updates.push({
+                _id: actor.id,
+                // Set initial value and max
+                flags: {
+                    [MODULE_ID]: {
+                        luckPoints: 0,
+                        maxLuck: 5
+                    }
+                }
+            });
+        }
     }
-  }
+
+    // Apply all updates in a single database operation for efficiency
+    if (updates.length > 0) {
+        await Actor.updateDocuments(updates);
+        console.log(`${MODULE_ID} | Updated ${updates.length} Actors with Luck Points flag.`);
+    }
 });
 
-// Open the Spend Luck dialog. sheetApp is optional but used to re-render the sheet after spending.
-async function openLuckDialog(actor, sheetApp = null) {
-  const luck = actor.system.resources.primary?.value ?? 0;
-
-  new Dialog({
-    title: `Spend Luck Points — ${actor.name}`,
-    content: `
-      <p>${actor.name} has <strong>${luck}</strong> Luck Point${luck === 1 ? "" : "s"}.</p>
-      <p>Choose how to spend them:</p>
-    `,
-    buttons: {
-      spend1: {
-        label: "Spend 1 ( +1 to a d20 roll )",
-        callback: async () => {
-          if (luck < 1) return ui.notifications.warn("Not enough Luck Points!");
-          const newVal = Math.max(0, luck - 1);
-          await actor.update({ "system.resources.primary.value": newVal });
-          ui.notifications.info(`${actor.name} spends 1 Luck Point.`);
-          // Re-render sheet to update UI (favorites count, etc.)
-          if (sheetApp) sheetApp.render();
-        }
-      },
-      spend3: {
-        label: "Spend 3 ( Reroll a d20 )",
-        callback: async () => {
-          if (luck < 3) return ui.notifications.warn("Not enough Luck Points!");
-          const newVal = Math.max(0, luck - 3);
-          await actor.update({ "system.resources.primary.value": newVal });
-          ui.notifications.info(`${actor.name} spends 3 Luck Points to reroll.`);
-          // You can add automatic reroll logic here later.
-          if (sheetApp) sheetApp.render();
-        }
-      },
-      cancel: {
-        label: "Cancel"
-      }
-    },
-    default: "cancel"
-  }).render(true);
+/**
+ * Helper function to retrieve an Actor's luck points.
+ * @param {Actor} actor The Actor document.
+ * @returns {{value: number, max: number}}
+ */
+function getLuckPoints(actor) {
+    // The ?? operator provides a default value if the flag is null or undefined
+    const luckData = actor.getFlag(MODULE_ID, "luckPoints");
+    const maxData = actor.getFlag(MODULE_ID, "maxLuck");
+    return {
+        value: luckData ?? 0,
+        max: maxData ?? 5
+    };
 }
 
-// Attach a click handler to the "Luck Points" Favorites entry on the character sheet.
-// This tries to be robust: it first looks in the Favorites area, then falls back to any element containing the label text.
-Hooks.on("renderActorSheet5eCharacter", (app, html) => {
-  // Clean up any previous markers so we don't double-bind
-  html.find(".luck-fav-bind").removeClass("luck-fav-bind").off("click");
 
-  const actor = app.actor;
+/********************************************************************************
+ * UI Logic: Dialogs and Sheet Replacement
+ ********************************************************************************/
 
-  // Helper: try to find the favorites region first (UI can differ by sheet)
-  let targets = html.find(".sidebar .favorites, .favorites, .favorite-list, .player-side .favorites");
+/**
+ * Open the Spend Luck dialog. sheetApp is optional but used to re-render the sheet after spending.
+ * @param {Actor} actor The actor spending luck.
+ * @param {Application} [sheetApp=null] The sheet application to re-render.
+ */
+async function openLuckDialog(actor, sheetApp = null) {
+    const { value: luck, max } = getLuckPoints(actor);
 
-  // If found, search inside it for nodes containing "Luck Points"
-  let luckNodes = $();
-  if (targets.length) {
-    targets.each((i, t) => {
-      // find any child element that contains the label text
-      const found = $(t).find(":contains('Luck Points')").filter(function() {
-        // only keep elements with direct text content (avoid picking huge wrappers)
-        const txt = $(this).text().trim();
-        return txt && txt.match(/Luck Points/);
-      });
-      luckNodes = luckNodes.add(found);
-    });
-  }
+    new Dialog({
+        title: `Spend Luck Points — ${actor.name}`,
+        content: `
+            <p>${actor.name} has <strong>${luck}</strong> Luck Point${luck === 1 ? "" : "s"} (Max ${max}).</p>
+            <p>Choose how to spend them:</p>
+        `,
+        buttons: {
+            spend1: {
+                label: "Spend 1 ( +1 to a d20 roll )",
+                callback: async () => {
+                    if (luck < 1) return ui.notifications.warn("Not enough Luck Points!");
+                    
+                    // Update the flag value
+                    const newVal = Math.max(0, luck - 1);
+                    await actor.setFlag(MODULE_ID, "luckPoints", newVal);
+                    
+                    ui.notifications.info(`${actor.name} spends 1 Luck Point for +1 to a roll.`);
+                    if (sheetApp) sheetApp.render();
+                }
+            },
+            spend3: {
+                label: "Spend 3 ( Re-roll a d20 )",
+                callback: async () => {
+                    if (luck < 3) return ui.notifications.warn("Not enough Luck Points!");
+                    
+                    // Update the flag value
+                    const newVal = Math.max(0, luck - 3);
+                    await actor.setFlag(MODULE_ID, "luckPoints", newVal);
 
-  // Fallback: search entire sheet for the label if we didn't find anything in Favorites
-  if (luckNodes.length === 0) {
-    const fallback = html.find(":contains('Luck Points')").filter(function() {
-      const txt = $(this).text().trim();
-      return txt && txt.match(/Luck Points/);
-    });
-    luckNodes = luckNodes.add(fallback);
-  }
+                    ui.notifications.info(`${actor.name} spends 3 Luck Points to re-roll.`);
+                    // You will add automatic reroll logic here later.
+                    if (sheetApp) sheetApp.render();
+                }
+            },
+            cancel: {
+                label: "Cancel"
+            }
+        },
+        default: "cancel"
+    }).render(true);
+}
 
-  // For each matched node, climb to a clickable parent (anchor/button/.item/etc) and bind the click.
-  luckNodes.each((i, node) => {
-    const $node = $(node);
+/**
+ * Replaces the Inspiration button on the D&D 5e sheet with the Luck Points display.
+ */
+Hooks.on("renderActorSheet5eCharacter", (app, [html]) => {
+    const actor = app.actor;
 
-    // Prefer a clickable ancestor: a, button, .directory-item, .item, .favorite, .resource, or the immediate parent
-    let $clickTarget = $node.closest("a, button, .directory-item, .item, .favorite, .resource, .entity, .resource-primary");
+    // 1. Find the Inspiration element
+    // The Inspiration toggle is an anchor tag with the data-action="inspiration" attribute.
+    const $inspiration = html.find('a[data-action="inspiration"]');
 
-    if ($clickTarget.length === 0) {
-      $clickTarget = $node.parent();
+    if ($inspiration.length === 0) {
+        console.warn(`${MODULE_ID} | Could not find Inspiration element on the sheet.`);
+        return;
     }
+    
+    // Check if the element has already been replaced to prevent double-binding
+    if ($inspiration.hasClass("luck-system-replaced")) return;
 
-    // If still nothing, just attach directly to the node
-    if ($clickTarget.length === 0) $clickTarget = $node;
+    // 2. Get the current Luck Points data
+    const { value: luck, max } = getLuckPoints(actor);
+    const label = `${luck} / ${max}`;
+    const title = `Luck Points: ${luck} / ${max}`;
 
-    // Avoid double-binding
-    if ($clickTarget.data("luck-bound")) return;
-    $clickTarget.data("luck-bound", true);
+    // 3. Replace the HTML content and attributes
+    // We keep the <a class="inspiration-button"> structure but change the content and behavior.
+    // The original Inspiration button looks like this: <a class="inspiration-button" data-action="inspiration"></a>
+    
+    $inspiration.removeClass("inspiration-button") // Remove the inspiration-specific class
+        .addClass("luck-points-button luck-system-replaced") // Add our classes
+        .attr("title", title) // Set the hover title
+        .removeAttr("data-action") // Remove the default inspiration action
+        .html(`
+            <span class="luck-value">${label}</span>
+            <span class="luck-label">Luck</span>
+        `); // Inject our custom HTML structure
 
-    // Add a small class for debugging/visual cue if desired
-    $clickTarget.addClass("luck-fav-bind");
-
-    // Bind click
-    $clickTarget.on("click", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      openLuckDialog(actor, app);
+    // 4. Bind the click handler to open the dialog
+    $inspiration.off("click").on("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openLuckDialog(actor, app);
     });
-  });
 });
