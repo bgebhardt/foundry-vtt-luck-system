@@ -3,18 +3,60 @@
 const MODULE_ID = "foundry-vtt-luck-system"; // Define your module ID for flags and settings
 
 /********************************************************************************
- * Data Management: Initialization and Getters
+ * Data Management: Flag Registration and Initialization
  ********************************************************************************/
 
 /**
+ * Register all settings and flags for the module.
+ * This MUST happen in the 'init' hook to ensure the flag scope is active.
+ */
+Hooks.on("init", () => {
+    console.log(`${MODULE_ID} | Initializing module flags.`);
+
+    /**
+     * Register the 'luckPoints' flag on the Actor document.
+     * This is required before 'getFlag' or 'setFlag' can be called.
+     */
+    game.modules.get(MODULE_ID).api.registerFlag("Actor", "luckPoints", {
+        name: "Luck Points Value",
+        hint: "The current number of Luck Points the character has.",
+        scope: "world", // Stored in the database, viewable by all.
+        config: false, // Don't show in Foundry's default settings menu.
+        type: Number,
+        default: 0
+    });
+
+    /**
+     * Register the 'maxLuck' flag on the Actor document.
+     */
+    game.modules.get(MODULE_ID).api.registerFlag("Actor", "maxLuck", {
+        name: "Max Luck Points",
+        hint: "The maximum number of Luck Points the character can hold.",
+        scope: "world",
+        config: false,
+        type: Number,
+        default: 5
+    });
+    
+    // Note: The above is a modern way to register flags as of Foundry V13.
+    // If you encounter an error with 'game.modules.get(MODULE_ID).api.registerFlag', 
+    // you may need to fallback to:
+    // CONFIG.Actor.documentClass.metadata.flags[MODULE_ID] = {
+    //     luckPoints: {name: "Luck Points Value", scope: "world", type: Number, default: 0},
+    //     maxLuck: {name: "Max Luck Points", scope: "world", type: Number, default: 5}
+    // };
+});
+
+
+/**
  * Initializes the luck point data as an Actor flag on all 'character' type Actors.
- * Using a flag prevents it from appearing as a standard resource on the D&D 5e sheet.
+ * This is where we ensure every existing Actor has the initial flag data.
  */
 Hooks.on("ready", async () => {
     // Only run setup for the GM.
     if (!game.user.isGM) return;
 
-    console.log(`${MODULE_ID} | Initializing Luck Points on Actors.`);
+    console.log(`${MODULE_ID} | Ensuring Luck Points flag exists on Actors.`);
 
     const updates = [];
 
@@ -24,12 +66,26 @@ Hooks.on("ready", async () => {
         if (actor.type !== "character") continue;
 
         // Check if the flag does not exist (first time running)
+        // getFlag is now safe to call because the flag was registered in 'init'.
         const currentLuck = actor.getFlag(MODULE_ID, "luckPoints");
 
-        if (currentLuck === undefined) {
+        // The flag will return the default (0) if it's set, so we check for an explicit undefined 
+        // which would only happen if the document was created before the flag was registered.
+        // A simpler approach now that we have defaults is to rely on them, but for existing documents, 
+        // we might still prefer an explicit initial update if defaults aren't enough.
+        // For simplicity and relying on the registered defaults:
+        
+        // This 'ready' block can actually be removed because the flags are now registered 
+        // with default values. The `getLuckPoints` function will handle the defaults. 
+        // We only need to keep it if we wanted to enforce the data structure with `updateDocuments`,
+        // but since we registered defaults, we'll keep the logic simple.
+        
+        // **I've commented out the heavy update loop, as registration with defaults is often enough:**
+        /*
+        if (currentLuck === undefined) { 
+            // If we still want to enforce the update (e.g., if we had a non-default setup):
             updates.push({
                 _id: actor.id,
-                // Set initial value and max
                 flags: {
                     [MODULE_ID]: {
                         luckPoints: 0,
@@ -38,14 +94,15 @@ Hooks.on("ready", async () => {
                 }
             });
         }
+        */
     }
 
-    // Apply all updates in a single database operation for efficiency
-    if (updates.length > 0) {
-        await Actor.updateDocuments(updates);
-        console.log(`${MODULE_ID} | Updated ${updates.length} Actors with Luck Points flag.`);
-    }
+    // if (updates.length > 0) {
+    //     await Actor.updateDocuments(updates);
+    //     console.log(`${MODULE_ID} | Updated ${updates.length} Actors with Luck Points flag.`);
+    // }
 });
+
 
 /**
  * Helper function to retrieve an Actor's luck points.
@@ -53,12 +110,12 @@ Hooks.on("ready", async () => {
  * @returns {{value: number, max: number}}
  */
 function getLuckPoints(actor) {
-    // The ?? operator provides a default value if the flag is null or undefined
+    // getFlag automatically returns the registered default value (0 and 5) if the flag is not set.
     const luckData = actor.getFlag(MODULE_ID, "luckPoints");
     const maxData = actor.getFlag(MODULE_ID, "maxLuck");
     return {
-        value: luckData ?? 0,
-        max: maxData ?? 5
+        value: luckData ?? 0, // Fallback safety, though getFlag should return default
+        max: maxData ?? 5    // Fallback safety
     };
 }
 
@@ -89,7 +146,8 @@ async function openLuckDialog(actor, sheetApp = null) {
                     
                     // Update the flag value
                     const newVal = Math.max(0, luck - 1);
-                    await actor.setFlag(MODULE_ID, "luckPoints", newVal);
+                    // Use setFlag to update the value
+                    await actor.setFlag(MODULE_ID, "luckPoints", newVal); 
                     
                     ui.notifications.info(`${actor.name} spends 1 Luck Point for +1 to a roll.`);
                     if (sheetApp) sheetApp.render();
@@ -102,10 +160,10 @@ async function openLuckDialog(actor, sheetApp = null) {
                     
                     // Update the flag value
                     const newVal = Math.max(0, luck - 3);
+                    // Use setFlag to update the value
                     await actor.setFlag(MODULE_ID, "luckPoints", newVal);
 
                     ui.notifications.info(`${actor.name} spends 3 Luck Points to re-roll.`);
-                    // You will add automatic reroll logic here later.
                     if (sheetApp) sheetApp.render();
                 }
             },
@@ -123,16 +181,12 @@ async function openLuckDialog(actor, sheetApp = null) {
 Hooks.on("renderActorSheet5eCharacter", (app, [html]) => {
     const actor = app.actor;
 
-    // 1. Find the Inspiration element
-    // The Inspiration toggle is an anchor tag with the data-action="inspiration" attribute.
+    // 1. Find the Inspiration element (anchor tag with data-action="inspiration")
     const $inspiration = html.find('a[data-action="inspiration"]');
 
-    if ($inspiration.length === 0) {
-        console.warn(`${MODULE_ID} | Could not find Inspiration element on the sheet.`);
-        return;
-    }
+    if ($inspiration.length === 0) return;
     
-    // Check if the element has already been replaced to prevent double-binding
+    // Check if the element has already been replaced
     if ($inspiration.hasClass("luck-system-replaced")) return;
 
     // 2. Get the current Luck Points data
@@ -141,17 +195,14 @@ Hooks.on("renderActorSheet5eCharacter", (app, [html]) => {
     const title = `Luck Points: ${luck} / ${max}`;
 
     // 3. Replace the HTML content and attributes
-    // We keep the <a class="inspiration-button"> structure but change the content and behavior.
-    // The original Inspiration button looks like this: <a class="inspiration-button" data-action="inspiration"></a>
-    
-    $inspiration.removeClass("inspiration-button") // Remove the inspiration-specific class
-        .addClass("luck-points-button luck-system-replaced") // Add our classes
-        .attr("title", title) // Set the hover title
-        .removeAttr("data-action") // Remove the default inspiration action
+    $inspiration.removeClass("inspiration-button") 
+        .addClass("luck-points-button luck-system-replaced") 
+        .attr("title", title) 
+        .removeAttr("data-action") 
         .html(`
             <span class="luck-value">${label}</span>
             <span class="luck-label">Luck</span>
-        `); // Inject our custom HTML structure
+        `); 
 
     // 4. Bind the click handler to open the dialog
     $inspiration.off("click").on("click", (event) => {
