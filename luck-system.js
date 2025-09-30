@@ -77,30 +77,37 @@ async function openLuckDialog(actor, sheetApp = null) {
 
 /**
  * Replaces the Inspiration button on the new D&D 5e character sheet.
- * This is the FINAL, CORRECT version of this hook.
  */
 Hooks.on("renderCharacterActorSheet", (app, html) => {
     console.log(`Luck System | Hook fired for ${app.actor.name}. Attempting to replace inspiration.`);
     
-    const inspirationContainer = html.find('header.sheet-header .inspiration');
-    if (inspirationContainer.length === 0) {
+    // Use .querySelector() on the standard HTML element.
+    const inspirationContainer = html.querySelector('header.sheet-header .inspiration');
+    
+    // The check is now for a null value, not a length of 0.
+    if (!inspirationContainer) {
         console.warn("Luck System | FAILED to find inspiration element. The sheet structure may have changed.");
         return;
     }
 
     const { value: luck, max } = getLuckPoints(app.actor);
-    const luckDisplay = $(`
-        <a class="luck-points-button inspiration" title="Luck Points: ${luck} / ${max}">
-            <span class="luck-value">${luck} / ${max}</span>
-            <span class="luck-label">Luck</span>
-        </a>
-    `);
 
-    luckDisplay.on("click", (event) => {
+    // Create the new element using standard JavaScript.
+    const luckDisplay = document.createElement('a');
+    luckDisplay.className = "luck-points-button inspiration";
+    luckDisplay.title = `Luck Points: ${luck} / ${max}`;
+    luckDisplay.innerHTML = `
+        <span class="luck-value">${luck} / ${max}</span>
+        <span class="luck-label">Luck</span>
+    `;
+
+    // Use .addEventListener() to attach the click behavior.
+    luckDisplay.addEventListener("click", (event) => {
         event.preventDefault();
         openLuckDialog(app.actor, app);
     });
 
+    // .replaceWith() works on standard elements, so this is fine.
     inspirationContainer.replaceWith(luckDisplay);
     console.log("Luck System | SUCCESS: Inspiration element replaced.");
 });
