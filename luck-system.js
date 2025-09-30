@@ -1,7 +1,5 @@
 // luck-system.js
 
-const MODULE_ID = "luck-system";
-
 // --- TEMPORARY DIAGNOSTIC ---
 // This hook will log the class name of every application window that opens.
 // Its only purpose is to find the correct name for the character sheet.

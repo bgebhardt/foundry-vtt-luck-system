@@ -3,19 +3,17 @@
   "title": "Luck System",
   "description": "Replaces Inspiration with a luck point system for D&D 5e.",
   "version": "0.0.6",
+    "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
   "authors": [
     {
       "name": "sgeep"
     }
   ],
-  "compatibility": {
-    "minimum": "11",
-    "verified": "11"
-  },
   "esmodules": [
     "luck-system.js"
-  ],
-  "systems": ["dnd5e"
   ],
   "url": "https://github.com/sgeep/foundry-vtt-luck-system",
   "manifest": "https://raw.githubusercontent.com/sgeep/foundry-vtt-luck-system/main/module.json",
