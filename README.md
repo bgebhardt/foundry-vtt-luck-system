@@ -1,10 +1,14 @@
 # Luck System
-A module for the Foundry VTT 5e system (intended for Legacy 2014 rules) that aims to replace the Inspiration system with Luck Points, based on the system from the 5e RPG Tales of the Vailant.
+A Foundry VTT version 13 module for the **new** default D&D 5e sheet that replaces the Inspiration system with Luck Points. Based on the Tales of the Valiant ruleset (and intended for 5e 2014 rules), it deactivates the Inspiration button and converts it to a player-spendable Luck Point tracker.
 
-The general gist of it (taken directly from Sly Flourish's website):
-* Every time a character misses an attack or a saving throw, they gain one luck point.
-* They can only hold up to five luck points. If they gain a sixth luck point, they roll 1d4 and that's how many luck points they have now.
-* They can spend one luck point to get +1 to a D20 roll after they roll.
-* They can spend three luck points to re-roll a d20 check.
+Luck Point Mechanics:
 
-GMs can award luck points for good roleplaying, brave behavior, and other times we might award inspiration but players will primarily gain luck with missed attacks and saving throws (not ability checks.)
+* Gain 1 Luck Point (LP) on a missed attack or saving throw (max 5 LPs).
+
+* If a player gains a sixth LP, roll a 1d4 - the outcome is their new LP total.
+
+* Spend 1 LP for +1 to a d20 roll (after the roll).
+
+* Spend 3 LPs to re-roll a d20 check.
+
+Shamelessly vibe coded with Gemini for a group that I DM for.
