@@ -44,10 +44,49 @@ function getLuckPoints(actor) {
 
 
 /********************************************************************************
- * UI Logic: Dialogs and Sheet Replacement
+ * Core Module Logic
  ********************************************************************************/
 
-async function openLuckDialog(actor, sheetApp = null) {
+/**
+ * Adds a luck point to a character, handling the "burst" mechanic.
+ * @param {Actor5e} actor The actor to whom to add a luck point.
+ */
+async function addLuckPoint(actor) {
+    const { value: currentLuck, max: maxLuck } = getLuckPoints(actor);
+    let newLuck = currentLuck + 1;
+    let messageContent = "";
+
+    // Handle the "burst" mechanic if they gain a 6th point
+    if (newLuck > maxLuck) {
+        const roll = new Roll("1d4");
+        await roll.evaluate({ async: true });
+        newLuck = roll.total;
+        messageContent = `${actor.name} was at the luck limit! Their new luck point total is: <strong>${newLuck}</strong>`;
+        // Post the roll to chat
+        roll.toMessage({
+            speaker: ChatMessage.getSpeaker({ actor }),
+            flavor: `${actor.name}'s Luck Bursts!`
+        });
+    } else {
+        messageContent = `1 luck point has been added to ${actor.name} for a total of <strong>${newLuck}</strong>.`;
+    }
+
+    // Update the actor's flag with the new value
+    await actor.setFlag(MODULE_ID, "luckPoints", newLuck);
+
+    // Announce the change in chat
+    ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: messageContent
+    });
+}
+
+
+/**
+ * Opens a dialog window for the player to spend their luck points.
+ * @param {Actor5e} actor The actor spending luck.
+ */
+async function openLuckDialog(actor) {
     const { value: luck, max } = getLuckPoints(actor);
     new Dialog({
         title: `Spend Luck Points — ${actor.name}`,
@@ -58,7 +97,10 @@ async function openLuckDialog(actor, sheetApp = null) {
                 condition: luck >= 1,
                 callback: async () => {
                     await actor.setFlag(MODULE_ID, "luckPoints", luck - 1);
-                    if (sheetApp) sheetApp.render();
+                    ChatMessage.create({
+                        speaker: ChatMessage.getSpeaker({ actor }),
+                        content: `${actor.name} spends 1 Luck Point for a +1 bonus.`
+                    });
                 }
             },
             spend3: {
@@ -66,7 +108,10 @@ async function openLuckDialog(actor, sheetApp = null) {
                 condition: luck >= 3,
                 callback: async () => {
                     await actor.setFlag(MODULE_ID, "luckPoints", luck - 3);
-                    if (sheetApp) sheetApp.render();
+                     ChatMessage.create({
+                        speaker: ChatMessage.getSpeaker({ actor }),
+                        content: `${actor.name} spends 3 Luck Points to re-roll a d20.`
+                    });
                 }
             },
             cancel: { label: "Cancel" }
@@ -75,39 +120,46 @@ async function openLuckDialog(actor, sheetApp = null) {
     }).render(true);
 }
 
-/**
- * Replaces the Inspiration button on the new D&D 5e character sheet.
- */
+
+/********************************************************************************
+ * Character Sheet UI Injection
+ ********************************************************************************/
+
 Hooks.on("renderCharacterActorSheet", (app, html) => {
-    console.log(`Luck System | Hook fired for ${app.actor.name}. Attempting to replace inspiration.`);
-    
-    // Use .querySelector() on the standard HTML element.
     const inspirationContainer = html.querySelector('header.sheet-header .inspiration');
-    
-    // The check is now for a null value, not a length of 0.
-    if (!inspirationContainer) {
-        console.warn("Luck System | FAILED to find inspiration element. The sheet structure may have changed.");
-        return;
-    }
+    if (!inspirationContainer) return;
 
     const { value: luck, max } = getLuckPoints(app.actor);
 
-    // Create the new element using standard JavaScript.
-    const luckDisplay = document.createElement('a');
-    luckDisplay.className = "luck-points-button inspiration";
-    luckDisplay.title = `Luck Points: ${luck} / ${max}`;
-    luckDisplay.innerHTML = `
-        <span class="luck-value">${luck} / ${max}</span>
-        <span class="luck-label">Luck</span>
+    // Create a new container for our entire luck system UI
+    const luckSystemContainer = document.createElement('div');
+    luckSystemContainer.className = "luck-system-container inspiration";
+
+    // Add the HTML for the display and the new buttons
+    luckSystemContainer.innerHTML = `
+        <div class="luck-display" title="Luck Points: ${luck} / ${max}">
+            <span class="luck-label">Luck</span>
+            <span class="luck-value">${luck} / ${max}</span>
+        </div>
+        <div class="luck-buttons">
+            <button type="button" class="add-luck-point" title="Add 1 Luck Point"><i class="fas fa-plus"></i></button>
+            <button type="button" class="spend-luck-point" title="Spend Luck Points"><i class="fas fa-hand-sparkles"></i></button>
+        </div>
     `;
 
-    // Use .addEventListener() to attach the click behavior.
-    luckDisplay.addEventListener("click", (event) => {
+    // Add event listeners to the new buttons
+    const addButton = luckSystemContainer.querySelector('.add-luck-point');
+    addButton.addEventListener('click', (event) => {
         event.preventDefault();
-        openLuckDialog(app.actor, app);
+        addLuckPoint(app.actor);
     });
 
-    // .replaceWith() works on standard elements, so this is fine.
-    inspirationContainer.replaceWith(luckDisplay);
-    console.log("Luck System | SUCCESS: Inspiration element replaced.");
+    const spendButton = luckSystemContainer.querySelector('.spend-luck-point');
+    spendButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        openLuckDialog(app.actor);
+    });
+
+    // Replace the original inspiration element with our new UI
+    inspirationContainer.replaceWith(luckSystemContainer);
 });
