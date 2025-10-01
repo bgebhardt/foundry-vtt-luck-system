@@ -5,6 +5,8 @@ Luck Point Mechanics:
 
 * Gain 1 Luck Point (LP) on a missed attack or saving throw (max 5 LPs).
 
+* If a player receives 6 LPs, roll a 1d4 - the result is their new LP total.
+
 * Spend 1 LP for +1 to a d20 roll (after the roll).
 
 * Spend 3 LPs to re-roll a d20 check.
