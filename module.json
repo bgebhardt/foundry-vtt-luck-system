@@ -2,7 +2,7 @@
   "id": "luck-system",
   "title": "Luck System",
   "description": "Replaces Inspiration with a luck point system for D&D 5e.",
-  "version": "0.0.9",
+  "version": "0.0.10",
     "compatibility": {
     "minimum": "13",
     "verified": "13"
