@@ -48,11 +48,12 @@ function getLuckPoints(actor) {
  ********************************************************************************/
 
 /**
- * Adds a luck point to a character, handling the "burst" mechanic.
+ * Adds a luck point to a character, whispering the result to the GM.
  * @param {Actor5e} actor The actor to whom to add a luck point.
  */
 async function addLuckPoint(actor) {
     const { value: currentLuck, max: maxLuck } = getLuckPoints(actor);
+    const gmUsers = ChatMessage.getWhisperRecipients("GM").map(u => u.id);
     let newLuck = currentLuck + 1;
     let messageContent = "";
 
@@ -62,10 +63,12 @@ async function addLuckPoint(actor) {
         await roll.evaluate({ async: true });
         newLuck = roll.total;
         messageContent = `${actor.name} was at the luck limit! Their new luck point total is: <strong>${newLuck}</strong>`;
-        // Post the roll to chat
+        
+        // Post the roll to chat, whispering to the GM
         roll.toMessage({
             speaker: ChatMessage.getSpeaker({ actor }),
-            flavor: `${actor.name}'s Luck Bursts!`
+            flavor: `${actor.name}'s Luck Bursts!`,
+            whisper: gmUsers // This line makes the roll private
         });
     } else {
         messageContent = `1 luck point has been added to ${actor.name} for a total of <strong>${newLuck}</strong>.`;
@@ -74,10 +77,11 @@ async function addLuckPoint(actor) {
     // Update the actor's flag with the new value
     await actor.setFlag(MODULE_ID, "luckPoints", newLuck);
 
-    // Announce the change in chat
+    // Announce the change in chat, whispering to the GM
     ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ actor }),
-        content: messageContent
+        content: messageContent,
+        whisper: gmUsers // This line makes the announcement private
     });
 }
 
@@ -90,7 +94,7 @@ async function openLuckDialog(actor) {
     const { value: luck, max } = getLuckPoints(actor);
     new Dialog({
         title: `Spend Luck Points — ${actor.name}`,
-        content: `<p>You have <strong>${luck}</strong> / ${max} Luck Points.</p>`,
+        content: `<p>You have <strong>${luck}</strong> / ${max} luck points.</p>`,
         buttons: {
             spend1: {
                 label: "Spend 1 (+1 to a d20 roll)",
@@ -99,7 +103,7 @@ async function openLuckDialog(actor) {
                     await actor.setFlag(MODULE_ID, "luckPoints", luck - 1);
                     ChatMessage.create({
                         speaker: ChatMessage.getSpeaker({ actor }),
-                        content: `${actor.name} spends 1 Luck Point for a +1 bonus.`
+                        content: `${actor.name} spends 1 luck point for a +1 bonus.`
                     });
                 }
             },
@@ -110,7 +114,7 @@ async function openLuckDialog(actor) {
                     await actor.setFlag(MODULE_ID, "luckPoints", luck - 3);
                      ChatMessage.create({
                         speaker: ChatMessage.getSpeaker({ actor }),
-                        content: `${actor.name} spends 3 Luck Points to re-roll a d20.`
+                        content: `${actor.name} spends 3 luck points to re-roll a d20.`
                     });
                 }
             },
