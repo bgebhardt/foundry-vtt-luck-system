@@ -1,24 +1,29 @@
 /* Styles for the Luck System UI on the character sheet */
 
 .luck-system-container {
-  /* This is the main container for our whole UI */
   display: flex;
-  flex-direction: column; /* This is the key change: Stack children vertically */
-  align-items: center;    /* Center them horizontally */
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  width: 70px;            /* Give it a fixed width to align nicely */
-  margin-right: 5px;      /* Add some space to its right */
+  width: 70px;
+  margin-right: 5px;
+
+  /* --- CHANGE #1: Move the whole block up --- */
+  position: relative; /* Allows us to nudge the position */
+  bottom: 15px;     /* A positive 'bottom' value moves the element up. Adjust as needed! */
 }
 
 .luck-system-container .luck-display .luck-label {
-  margin: 0; /* Remove default heading margin */
+  margin: 0;
   font-weight: bold;
-  font-size: 14px;
+  /* --- CHANGE #2: Increase font size --- */
+  font-size: 16px;
   line-height: 1;
 }
 
 .luck-system-container .luck-display .luck-value {
-  font-size: 16px;
+  /* --- CHANGE #3: Increase font size --- */
+  font-size: 18px;
   line-height: 1.2;
   margin-bottom: 3px;
 }
@@ -26,7 +31,7 @@
 .luck-system-container .luck-buttons {
   /* This keeps the two buttons side-by-side */
   display: flex;
-  width: 100%; /* Make button container take full width of parent */
+  width: 100%;
   gap: 5px;
 }
 
