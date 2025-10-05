@@ -177,11 +177,11 @@ Hooks.on("renderCharacterActorSheet", (app, html) => {
     const luckSystemContainer = document.createElement('div');
     luckSystemContainer.className = "luck-system-container inspiration";
 
-    // Add the HTML for the display and the new buttons
+    // UPDATED: This HTML is structured to create the vertical layout you want.
     luckSystemContainer.innerHTML = `
-        <div class="luck-display" title="Luck Points: ${luck} / ${max}">
-            <span class="luck-label">Luck</span>
-            <span class="luck-value">${luck} / ${max}</span>
+        <div class="luck-display">
+            <h4 class="luck-label">Luck</h4>
+            <div class="luck-value">${luck}/${max}</div>
         </div>
         <div class="luck-buttons">
             <button type="button" class="add-luck-point" title="Add 1 Luck Point"><i class="fas fa-plus"></i></button>
