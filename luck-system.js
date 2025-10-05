@@ -88,39 +88,77 @@ async function addLuckPoint(actor) {
 
 /**
  * Opens a dialog window for the player to spend their luck points.
+ * Allows spending a variable amount for a bonus.
  * @param {Actor5e} actor The actor spending luck.
  */
 async function openLuckDialog(actor) {
     const { value: luck, max } = getLuckPoints(actor);
+    const content = `
+        <p>You have <strong>${luck}</strong> / ${max} Luck Points.</p>
+        <hr>
+        <form>
+            <div class="form-group">
+                <label for="luck-points-to-spend">Spend points for a bonus (+1 per point):</label>
+                <div class="form-fields">
+                    <input type="number" id="luck-points-to-spend" value="1" min="1" max="5" />
+                    <button type="submit" class="spend-for-bonus">Spend</button>
+                </div>
+            </div>
+        </form>
+    `;
+
     new Dialog({
         title: `Spend Luck Points — ${actor.name}`,
-        content: `<p>You have <strong>${luck}</strong> / ${max} luck points.</p>`,
+        content: content,
         buttons: {
-            spend1: {
-                label: "Spend 1 (+1 to a d20 roll)",
-                condition: luck >= 1,
-                callback: async () => {
-                    await actor.setFlag(MODULE_ID, "luckPoints", luck - 1);
-                    ChatMessage.create({
-                        speaker: ChatMessage.getSpeaker({ actor }),
-                        content: `${actor.name} spends 1 luck point for a +1 bonus.`
-                    });
-                }
-            },
-            spend3: {
-                label: "Spend 3 (Re-roll a d20)",
+            spendReroll: {
+                icon: '<i class="fas fa-dice-d20"></i>',
+                label: "Spend 3 to Reroll",
                 condition: luck >= 3,
                 callback: async () => {
                     await actor.setFlag(MODULE_ID, "luckPoints", luck - 3);
-                     ChatMessage.create({
+                    ChatMessage.create({
                         speaker: ChatMessage.getSpeaker({ actor }),
-                        content: `${actor.name} spends 3 luck points to re-roll a d20.`
+                        content: `${actor.name} spends 3 Luck Points to re-roll a d20.`
                     });
                 }
             },
-            cancel: { label: "Cancel" }
+            close: {
+                icon: '<i class="fas fa-times"></i>',
+                label: "Cancel"
+            }
         },
-        default: "cancel"
+        default: "close",
+        render: (html) => {
+            // The html argument is a jQuery object. Find the form and add a submit handler.
+            html.find("form").on("submit", async (event) => {
+                event.preventDefault();
+                const input = html.find("#luck-points-to-spend")[0];
+                const amountToSpend = parseInt(input.value);
+
+                // Validation
+                if (isNaN(amountToSpend) || amountToSpend <= 0) {
+                    return ui.notifications.warn("Please enter a valid number of points.");
+                }
+                if (amountToSpend > luck) {
+                    return ui.notifications.warn(`You only have ${luck} luck points!`);
+                }
+                if (amountToSpend > 5) {
+                    return ui.notifications.warn("You cannot spend more than 5 points at a time.");
+                }
+
+                // If validation passes, process the action
+                const newTotal = luck - amountToSpend;
+                await actor.setFlag(MODULE_ID, "luckPoints", newTotal);
+                ChatMessage.create({
+                    speaker: ChatMessage.getSpeaker({ actor }),
+                    content: `${actor.name} spends ${amountToSpend} Luck Point(s) for a +${amountToSpend} bonus to a roll.`
+                });
+
+                // Close the dialog after submission
+                html.closest(".dialog").find(".dialog-button.close").trigger("click");
+            });
+        }
     }).render(true);
 }
 
