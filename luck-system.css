@@ -1,0 +1,20 @@
+/* Styles for the Luck System UI on the character sheet */
+
+.luck-system-container {
+  /* This helps align our new content with the original inspiration checkbox */
+  padding: 0;
+}
+
+.luck-system-container .luck-buttons {
+  /* This is the magic that puts the buttons side-by-side */
+  display: flex;
+  flex-direction: row; /* Arrange items horizontally */
+  gap: 5px;            /* Add a small space between the buttons */
+  margin-top: 3px;     /* Add a little space above the buttons */
+}
+
+.luck-system-container .luck-buttons button {
+  /* This makes both buttons take up an equal amount of space */
+  flex: 1;
+  line-height: 1.5; /* Helps vertically center the icons inside */
+}
