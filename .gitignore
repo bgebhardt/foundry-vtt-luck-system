@@ -1,3 +1,6 @@
+# ignore module release zip files
+*.zip
+
 # Logs
 logs
 *.log
