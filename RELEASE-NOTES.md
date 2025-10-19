@@ -1,5 +1,26 @@
 # Release Notes
 
+## Version 0.0.18 - Help Button UX Improvement
+
+### What's New
+
+- **Compact Help Button**: Moved help button to top-right of spend dialog as a small question mark icon
+- **Better Dialog Layout**: Help no longer takes up space in the bottom button row
+- **Improved UX**: Help button stays visible while using the dialog, doesn't require reopening
+
+### Technical Details
+
+- Moved help button from dialog buttons to inline content area
+- Styled as minimal icon button (18px, red color, no background)
+- Added hover tooltip "Show Luck Rules"
+- Help dialog opens without closing the spend dialog
+
+### Upgrade Notes
+
+No breaking changes - simply update and existing luck point data will work unchanged.
+
+---
+
 ## Version 0.0.17 - UI Improvements and Help System
 
 ### What's New
