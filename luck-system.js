@@ -1,4 +1,5 @@
 // luck-system.js
+// Version 0.0.17
 
 const MODULE_ID = "luck-system"; 
 
@@ -174,7 +175,12 @@ function showLuckRules() {
 async function openLuckDialog(actor) {
     const { value: luck, max } = getLuckPoints(actor);
     const content = `
-        <p>You have <strong>${luck}</strong> / ${max} Luck Points.</p>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <p style="margin: 0;">You have <strong>${luck}</strong> / ${max} Luck Points.</p>
+            <button type="button" class="luck-help-button" title="Show Luck Rules" style="background: none; border: none; cursor: pointer; font-size: 18px; color: #c53131; padding: 0;">
+                <i class="fas fa-question-circle"></i>
+            </button>
+        </div>
         <hr>
         <form>
             <div class="form-group">
@@ -191,15 +197,6 @@ async function openLuckDialog(actor) {
         title: `Spend Luck Points — ${actor.name}`,
         content: content,
         buttons: {
-            help: {
-                icon: '<i class="fas fa-question-circle"></i>',
-                label: "Help",
-                callback: () => {
-                    showLuckRules();
-                    // Re-open this dialog after showing rules
-                    setTimeout(() => openLuckDialog(actor), 100);
-                }
-            },
             spendReroll: {
                 icon: '<i class="fas fa-dice-d20"></i>',
                 label: "Spend 3 to Reroll",
@@ -219,6 +216,12 @@ async function openLuckDialog(actor) {
         },
         default: "close",
         render: (html) => {
+            // Add event listener for the help button
+            html.find(".luck-help-button").on("click", (event) => {
+                event.preventDefault();
+                showLuckRules();
+            });
+
             // The html argument is a jQuery object. Find the form and add a submit handler.
             html.find("form").on("submit", async (event) => {
                 event.preventDefault();
