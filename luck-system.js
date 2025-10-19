@@ -68,7 +68,7 @@ async function addLuckPoint(actor) {
         await roll.evaluate({ async: true });
         newLuck = roll.total;
         messageContent = `${actor.name} was at the luck limit! Their new luck point total is: <strong>${newLuck}</strong>`;
-        
+
         // Post the roll to chat, whispering to the GM
         roll.toMessage({
             speaker: ChatMessage.getSpeaker({ actor }),
@@ -88,6 +88,81 @@ async function addLuckPoint(actor) {
         content: messageContent,
         whisper: gmUsers // This line makes the announcement private
     });
+}
+
+
+/**
+ * Decreases a luck point from a character, whispering the result to the GM.
+ * @param {Actor5e} actor The actor from whom to remove a luck point.
+ */
+async function decreaseLuckPoint(actor) {
+    const { value: currentLuck } = getLuckPoints(actor);
+    const gmUsers = ChatMessage.getWhisperRecipients("GM").map(u => u.id);
+
+    // Don't go below 0
+    if (currentLuck <= 0) {
+        ui.notifications.warn(`${actor.name} has no luck points to remove.`);
+        return;
+    }
+
+    const newLuck = currentLuck - 1;
+    const messageContent = `1 luck point has been removed from ${actor.name} for a total of <strong>${newLuck}</strong>.`;
+
+    // Update the actor's flag with the new value
+    await actor.setFlag(MODULE_ID, "luckPoints", newLuck);
+
+    // Announce the change in chat, whispering to the GM
+    ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({ actor }),
+        content: messageContent,
+        whisper: gmUsers // This line makes the announcement private
+    });
+}
+
+
+/**
+ * Shows the luck point rules in a dialog.
+ */
+function showLuckRules() {
+    const rulesContent = `
+        <div style="font-family: 'Signika', sans-serif; line-height: 1.6;">
+            <h2 style="margin-top: 0; color: #c53131; border-bottom: 2px solid #c53131; padding-bottom: 5px;">Luck</h2>
+            <p>Every PC has a special resource called <strong>Luck</strong> that can be used to influence the result of any of your checks: ability check, attack roll, or save.</p>
+
+            <h3 style="color: #c53131; margin-top: 15px;">Gaining Luck Points</h3>
+            <p>When you create your character, start with 0 Luck points. Gain Luck points in the following ways:</p>
+            <ul style="margin-left: 20px;">
+                <li>Once per turn, when you fail an attack roll or save, gain 1 Luck point.</li>
+                <li>The GM can award 1 Luck point as a reward for a clever idea, excellent roleplaying, or pursuing an interesting—rather than optimal—choice.</li>
+                <li>The GM can award Luck to a party for surviving difficult encounters or achieving story goals (in addition to XP).</li>
+            </ul>
+
+            <h3 style="color: #c53131; margin-top: 15px;">Losing Luck Points</h3>
+            <p>You can have a <strong>maximum of 5 Luck points</strong> at one time. If a PC has 5 Luck points and would gain a 6th point, you must immediately roll a d4 and reset your Luck points to the die result.</p>
+
+            <h3 style="color: #c53131; margin-top: 15px;">Spending Luck Points</h3>
+            <p>You spend Luck points to add to any d20 roll you make. For example, if you have 4 Luck points, and roll a 13 on the die, you can spend 2 Luck points to make your roll result a 15 (leaving you with 2 Luck points for later).</p>
+            <p>Alternatively, immediately after you make a check (attack, ability check, or save), you can spend <strong>3 Luck points to reroll a d20</strong>.</p>
+            <p>In either case, you spend Luck after you roll but before the GM declares whether the roll succeeds or fails. <strong>Luck can't offset effects of a natural 1 or create a natural 20.</strong></p>
+
+            <hr style="margin: 15px 0; border: none; border-top: 1px solid #999;">
+            <p style="font-size: 12px; font-style: italic; text-align: center;">
+                Rules from <a href="https://koboldpress.com/wp-content/uploads/2023/10/Black-Flag-Roleplaying-v0.1_101123.pdf" target="_blank" style="color: #c53131;">Black Flag Roleplaying</a> by Kobold Press
+            </p>
+        </div>
+    `;
+
+    new Dialog({
+        title: "Luck Point Rules",
+        content: rulesContent,
+        buttons: {
+            close: {
+                icon: '<i class="fas fa-times"></i>',
+                label: "Close"
+            }
+        },
+        default: "close"
+    }).render(true);
 }
 
 
@@ -116,6 +191,15 @@ async function openLuckDialog(actor) {
         title: `Spend Luck Points — ${actor.name}`,
         content: content,
         buttons: {
+            help: {
+                icon: '<i class="fas fa-question-circle"></i>',
+                label: "Help",
+                callback: () => {
+                    showLuckRules();
+                    // Re-open this dialog after showing rules
+                    setTimeout(() => openLuckDialog(actor), 100);
+                }
+            },
             spendReroll: {
                 icon: '<i class="fas fa-dice-d20"></i>',
                 label: "Spend 3 to Reroll",
@@ -210,12 +294,19 @@ function injectLuckUI(app, html) {
             <div class="luck-value">${luck}/${max}</div>
         </div>
         <div class="luck-buttons">
+            <button type="button" class="decrease-luck-point" title="Remove 1 Luck Point"><i class="fas fa-minus"></i></button>
             <button type="button" class="add-luck-point" title="Add 1 Luck Point"><i class="fas fa-plus"></i></button>
             <button type="button" class="spend-luck-point" title="Spend Luck Points"><i class="fas fa-hand-sparkles"></i></button>
         </div>
     `;
 
     // Add event listeners to the new buttons
+    const decreaseButton = luckSystemContainer.querySelector('.decrease-luck-point');
+    decreaseButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        decreaseLuckPoint(app.actor);
+    });
+
     const addButton = luckSystemContainer.querySelector('.add-luck-point');
     addButton.addEventListener('click', (event) => {
         event.preventDefault();

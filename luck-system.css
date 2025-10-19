@@ -21,6 +21,11 @@
   font-size: 16px;
   line-height: 1.2;
   margin-bottom: 3px;
+  background-color: #c53131; /* D&D 5e sheet red color */
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-weight: bold;
 }
 
 .luck-system-container .luck-buttons {

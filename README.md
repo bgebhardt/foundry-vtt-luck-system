@@ -13,6 +13,8 @@ Luck Point Mechanics:
 
 * Spend 3 LPs to re-roll a d20 check.
 
+See [Black-Flag-Roleplaying-v0.1_101123.pdf](https://koboldpress.com/wp-content/uploads/2023/10/Black-Flag-Roleplaying-v0.1_101123.pdf) for more details on the luck system.
+
 ## Installation
 
 ### Method 1: Install via Manifest URL (Recommended)
