@@ -1,5 +1,27 @@
 # Release Notes
 
+## Version 0.0.19 - Improved Visual Contrast
+
+### What's New
+
+- **Enhanced Visibility**: Luck container now has dark background with white text for better readability
+- **Professional Styling**: Added padding, rounded corners, and subtle border
+- **Better Contrast**: Dark gray background (`#1a1a1a`) easier on the eyes than pure black
+- **Maintained Red Highlight**: Luck value keeps red background for emphasis
+
+### Technical Details
+
+- Container: Dark gray background with white text, 5px padding, 4px border radius
+- Border: Subtle `#444` gray border for definition
+- Luck value: Red background (`#c53131`) maintained for visibility
+- Overall: More polished, professional appearance on character sheet
+
+### Upgrade Notes
+
+No breaking changes - simply update and existing luck point data will work unchanged.
+
+---
+
 ## Version 0.0.18 - Help Button UX Improvement
 
 ### What's New

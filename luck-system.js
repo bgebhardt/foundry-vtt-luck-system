@@ -1,5 +1,5 @@
 // luck-system.js
-// Version 0.0.18
+// Version 0.0.19
 
 const MODULE_ID = "luck-system"; 
 
