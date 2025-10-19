@@ -169,18 +169,44 @@ Follow the symlink instructions in [Method 3](#method-3-symlink-for-development-
 
 ### Creating a Distribution ZIP
 
-Create a ZIP file containing only the essential files:
+**IMPORTANT:** The ZIP must contain a folder named `luck-system` (matching the module ID) with the files inside.
+
+#### Method 1: Using the Build Script (Recommended)
+
+The repository includes an automated build script that reads the version from `module.json`:
 
 ```bash
 # From the repository root:
-zip -r luck-system-v0.0.16.zip module.json luck-system.js luck-system.css
+./build.sh
 ```
 
-Or manually:
+This will:
+- Automatically extract the version from `module.json`
+- Create the proper folder structure
+- Generate `luck-system-v{VERSION}.zip`
+- Verify the ZIP contents
+- Show next steps for release
+
+#### Method 2: Manual Build
+
+```bash
+# From the repository root - create proper structure:
+mkdir -p temp-build/luck-system
+cp module.json luck-system.js luck-system.css temp-build/luck-system/
+cd temp-build
+zip -r ../luck-system-v0.0.18.zip luck-system/
+cd ..
+rm -rf temp-build
+```
+
+#### Method 3: Manual (GUI)
+
 1. Create a folder named `luck-system`
 2. Copy `module.json`, `luck-system.js`, and `luck-system.css` into it
-3. ZIP the folder
-4. Rename to `luck-system-v0.0.16.zip`
+3. ZIP the `luck-system` folder (so the ZIP contains: `luck-system/module.json`, etc.)
+4. Rename the ZIP to `luck-system-v{VERSION}.zip`
+
+**Common mistake:** Don't ZIP the files directly - the ZIP must contain the `luck-system` folder!
 
 ### Update module.json Download URL
 
@@ -314,8 +340,10 @@ cp module.json luck-system.js luck-system.css ~/Library/Application\ Support/Fou
 # Create symlink (macOS)
 ln -s $(pwd) ~/Library/Application\ Support/FoundryVTT/Data/modules/luck-system
 
-# Create release ZIP
-zip -r luck-system.zip module.json luck-system.js luck-system.css
+# Create release ZIP (CORRECT structure with folder)
+mkdir -p temp-build/luck-system
+cp module.json luck-system.js luck-system.css temp-build/luck-system/
+cd temp-build && zip -r ../luck-system-v0.0.16.zip luck-system/ && cd .. && rm -rf temp-build
 
 # Create git tag
 git tag v0.0.16
