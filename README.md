@@ -42,3 +42,38 @@ See [BUILD.md](BUILD.md) for more detailed installation instructions.
 Shamelessly vibe coded with Gemini for a group that I DM for. - **sgeep**
 
 Forked and vibe coded more with Claude to add Foundry V12 and D&D 5e v3.3.1 compatibility. - **bgebhardt**
+
+# Development
+
+## If Foundry Caching Issues:
+### Common caching sources
+- Browser cache: the browser caches JS/CSS files.
+- Foundry data cache: Foundry keeps module assets in memory.
+- Service worker: if enabled, can cache assets across reloads.
+### How to force Foundry to reload your module
+
+Method 1 — Hard refresh (quick)
+- Windows / Linux: `Ctrl + Shift + R`
+- macOS: `Cmd + Shift + R`
+
+Method 2 — Empty cache and hard reload
+1. Open DevTools (F12).
+2. Right‑click the browser refresh button.
+3. Choose "Empty Cache and Hard Reload".
+
+Method 3 — Disable cache in DevTools (for development)
+1. Open DevTools (F12) → Network tab.
+2. Check "Disable cache".
+3. Keep DevTools open while testing.
+
+Method 4 — Restart Foundry completely
+1. Shut down the Foundry VTT application/server.
+2. Restart Foundry and reload your world.
+
+Method 5 — Manual cache bust (symlink/dev workflow)
+- After making changes to your source file, update its timestamp:
+    - Unix/macOS: `touch luck-system.js`
+    - Windows (PowerShell): `ni luck-system.js -Force` or use an editor to save the file
+- Then press `F5` or perform a hard refresh in the browser.
+
+Optional: if a service worker is installed for your Foundry instance, open DevTools → Application (or Storage) → Service Workers and unregister it to avoid persistent cached assets while developing.
