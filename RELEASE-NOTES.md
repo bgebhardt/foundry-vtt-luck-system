@@ -1,5 +1,26 @@
 # Release Notes
 
+## Version 0.0.20 - CSS Cache Busting
+
+### What's New
+
+- **Automatic CSS Refresh**: CSS now loads with version parameter to force browser cache refresh
+- **No More Hard Refresh**: Users no longer need to Cmd+Shift+R after updates
+- **Better Update Experience**: Styles update automatically when module is updated
+
+### Technical Details
+
+- Removed CSS from `module.json` static loading
+- Dynamically inject CSS with `?v={VERSION}` query parameter in `init` hook
+- CSS path: `modules/luck-system/luck-system.css?v=0.0.20`
+- Console log confirms CSS loaded with cache busting
+
+### Upgrade Notes
+
+No breaking changes - simply update and CSS will refresh automatically on next load.
+
+---
+
 ## Version 0.0.19 - Improved Visual Contrast
 
 ### What's New

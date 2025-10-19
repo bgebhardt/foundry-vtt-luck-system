@@ -2,7 +2,7 @@
   "id": "luck-system",
   "title": "Luck System",
   "description": "Replaces Inspiration with a luck point system for D&D 5e.",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "compatibility": {
     "minimum": "12",
     "verified": "12"
@@ -25,10 +25,7 @@
   "esmodules": [
     "luck-system.js"
   ],
-  "styles": [
-    "./luck-system.css"
-  ],
   "url": "https://github.com/bgebhardt/foundry-vtt-luck-system",
   "manifest": "https://raw.githubusercontent.com/bgebhardt/foundry-vtt-luck-system/main/module.json",
-  "download": "https://github.com/bgebhardt/foundry-vtt-luck-system/releases/download/v0.0.19/luck-system-v0.0.19.zip"
+  "download": "https://github.com/bgebhardt/foundry-vtt-luck-system/releases/download/v0.0.20/luck-system-v0.0.20.zip"
 }

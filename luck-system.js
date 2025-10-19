@@ -1,7 +1,23 @@
 // luck-system.js
-// Version 0.0.19
+// Version 0.0.20
 
-const MODULE_ID = "luck-system"; 
+const MODULE_ID = "luck-system";
+const MODULE_VERSION = "0.0.20";
+
+/********************************************************************************
+ * CSS Cache Busting
+ ********************************************************************************/
+
+// Load CSS with version parameter for cache busting
+Hooks.once("init", () => {
+    const cssPath = `modules/${MODULE_ID}/luck-system.css?v=${MODULE_VERSION}`;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.type = "text/css";
+    link.href = cssPath;
+    document.head.appendChild(link);
+    console.log(`${MODULE_ID} | Loaded CSS with cache busting: v${MODULE_VERSION}`);
+});
 
 /********************************************************************************
  * Data Management and Initialization
