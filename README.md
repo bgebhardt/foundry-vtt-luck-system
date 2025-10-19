@@ -12,3 +12,5 @@ Luck Point Mechanics:
 * Spend 3 LPs to re-roll a d20 check.
 
 Shamelessly vibe coded with Gemini for a group that I DM for.
+
+bgebhardt: Forked sgeep's version and vibe coded more with Claude to add Foundry V12 and D&D 5e v3.3.1 compatibility.

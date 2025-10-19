@@ -8,6 +8,11 @@ const MODULE_ID = "luck-system";
 
 Hooks.on("ready", async () => {
     if (!game.user.isGM) return;
+
+    // Log version information for debugging
+    console.log(`${MODULE_ID} | Module initialized`);
+    console.log(`${MODULE_ID} | Foundry VTT version: ${game.version}`);
+    console.log(`${MODULE_ID} | D&D 5e system version: ${game.system.version}`);
     console.log(`${MODULE_ID} | Initializing flags if necessary.`);
 
     const updates = [];
@@ -167,9 +172,30 @@ async function openLuckDialog(actor) {
  * Character Sheet UI Injection
  ********************************************************************************/
 
-Hooks.on("renderCharacterActorSheet", (app, html) => {
-    const inspirationContainer = html.querySelector('header.sheet-header .inspiration');
-    if (!inspirationContainer) return;
+/**
+ * Injects the luck system UI into the character sheet.
+ * @param {Application} app The character sheet application.
+ * @param {jQuery} html The jQuery HTML object of the sheet.
+ */
+function injectLuckUI(app, html) {
+    // Only process character actors
+    if (app.actor.type !== "character") return;
+
+    // Convert jQuery to native element if needed
+    const htmlElement = html[0] || html;
+
+    // Try multiple possible selectors for the inspiration element
+    let inspirationContainer = htmlElement.querySelector('header.sheet-header .inspiration');
+    if (!inspirationContainer) {
+        inspirationContainer = htmlElement.querySelector('.inspiration');
+    }
+    if (!inspirationContainer) {
+        inspirationContainer = htmlElement.querySelector('[data-attribute="inspiration"]');
+    }
+    if (!inspirationContainer) {
+        console.warn(`${MODULE_ID} | Could not find inspiration element in character sheet for ${app.actor.name}`);
+        return;
+    }
 
     const { value: luck, max } = getLuckPoints(app.actor);
 
@@ -204,4 +230,16 @@ Hooks.on("renderCharacterActorSheet", (app, html) => {
 
     // Replace the original inspiration element with our new UI
     inspirationContainer.replaceWith(luckSystemContainer);
+}
+
+// Register hooks for multiple possible character sheet types
+// This ensures compatibility across different versions of the D&D 5e system
+Hooks.on("renderActorSheet5eCharacter", injectLuckUI);
+Hooks.on("renderActorSheet5eCharacter2", injectLuckUI);
+Hooks.on("renderCharacterActorSheet", injectLuckUI);
+
+// Fallback: generic hook with system check
+Hooks.on("renderActorSheet", (app, html) => {
+    if (game.system.id !== "dnd5e") return;
+    injectLuckUI(app, html);
 });
